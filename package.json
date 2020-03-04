@@ -18,5 +18,8 @@
   "license": "CC0-1.0",
   "devDependencies": {
     "electron": "^8.0.3"
+  },
+  "dependencies": {
+    "pfs": "^3.0.0"
   }
 }
