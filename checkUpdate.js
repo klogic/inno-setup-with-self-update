@@ -69,7 +69,7 @@ function generateFullAppName(jsonServer) {
 
 function isNewVersionAvalible(jsonApp, jsonServer) {
   if (
-    compareIsNewerVersion(jsonApp.version, jsonServer.version) &&
+    compareIsNewerVersion(jsonApp.version, jsonServer.version) ||
     compareIsNewDate(jsonApp.releaseDate, jsonServer.releaseDate)
   ) {
     return true;
