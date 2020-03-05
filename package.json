@@ -1,10 +1,12 @@
 {
-  "name": "electron-quick-start",
+  "name": "poc-full-self-update",
   "version": "1.0.0",
-  "description": "A minimal Electron application",
+  "description": "POC of installer and self update",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "build": "node build/build.js",
+    "pack": "node build/pack.js"
   },
   "repository": "https://github.com/electron/electron-quick-start",
   "keywords": [
@@ -17,9 +19,11 @@
   "author": "GitHub",
   "license": "CC0-1.0",
   "devDependencies": {
-    "electron": "^8.0.3"
+    "electron": "^8.0.3",
+    "electron-packager": "^14.2.1"
   },
   "dependencies": {
+    "innosetup-compiler": "^5.6.1",
     "pfs": "^3.0.0"
   }
 }
