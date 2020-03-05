@@ -4,3 +4,4 @@ dist/*
 !dist/.gitkeep
 !pack/.gitkeep
 .vscode
+*.exe

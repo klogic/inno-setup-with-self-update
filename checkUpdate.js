@@ -45,7 +45,7 @@ async function doDownloadFileFromServer(fullAppName, downloadLink, tempPath) {
       responseType: "stream"
     })
       .then(result => {
-        const fullPath = `${tempPath}/${fullAppName}`;
+        const fullPath = `${tempPath}/${fullAppName}.exe`;
         const readStream = pfs.createWriteStream(fullPath);
         result.data.pipe(readStream);
         result.data.on("close", () => {
@@ -57,7 +57,7 @@ async function doDownloadFileFromServer(fullAppName, downloadLink, tempPath) {
 }
 function generateFullAppName(jsonServer) {
   const { appName, version } = jsonServer;
-  return `${appName}-x64-${version}.exe`;
+  return `${appName}-x64-${version}`;
 }
 
 function isNewVersionAvalible(jsonApp, jsonServer) {
@@ -87,9 +87,9 @@ function doInstall(downloadedFile) {
 }
 
 function doUpdateJsonFile(jsonServer) {
-  pfs.unlinkSync("./resources/latest.json");
+  pfs.unlinkSync("./dist/latest.json");
   pfs.writeFile(
-    "./resources/latest.json",
+    "./dist/latest.json",
     JSON.stringify(jsonServer),
     { flag: "wx" },
     err => {
@@ -112,7 +112,7 @@ async function doCheckUpdate() {
   );
   if (isNewVersion) {
     const fullAppName = generateFullAppName(jsonLatestVersionServer);
-    const downloadLink = `${appUrl}/${fullAppName}`;
+    const downloadLink = `${appUrl}/${fullAppName}/${fullAppName}.exe`;
     const tempPath = getTempPath();
     const downloadedFile = await doDownloadFileFromServer(
       fullAppName,
