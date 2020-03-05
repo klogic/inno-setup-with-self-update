@@ -23,6 +23,7 @@
     "electron-packager": "^14.2.1"
   },
   "dependencies": {
+    "axios": "^0.19.2",
     "innosetup-compiler": "^5.6.1",
     "pfs": "^3.0.0"
   }
