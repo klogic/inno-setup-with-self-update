@@ -1,6 +1,6 @@
 {
   "name": "poc-full-self-update",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "POC of installer and self update",
   "main": "main.js",
   "scripts": {

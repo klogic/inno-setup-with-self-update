@@ -1,3 +1,4 @@
+const os = require("os");
 const jsonLatestVersionApp = require("./dist/latest.json");
 const { dialog } = require("electron");
 const axios = require("axios");
@@ -34,8 +35,14 @@ function compareIsNewerVersion(oldVer, newVer) {
   return false;
 }
 
-function getTempPath() {
-  return `./temp`;
+function getTempPath(appName) {
+  return new Promise((resolve, reject) => {
+    pfs.mkdtemp(path.join(os.tmpdir(), appName), (err, folder) => {
+      if (err) reject(null);
+      console.log("folder temp: ", folder);
+      resolve(folder);
+    });
+  });
 }
 async function doDownloadFileFromServer(fullAppName, downloadLink, tempPath) {
   return new Promise(async (resolve, reject) => {
@@ -75,14 +82,18 @@ function doInstall(downloadedFile) {
     "/verysilent",
     "/nocloseapplications"
   ]);
-  execute.stdout.on("data", data => {
-    console.log(`stdout: ${data}`);
-  });
-  execute.on("error", error => {
-    console.log(`error: ${error}`);
-  });
-  execute.on("close", code => {
-    console.log(`child process exited with code ${code}`);
+  return new Promise((resolve, reject) => {
+    execute.stdout.on("data", data => {
+      console.log(`stdout: ${data}`);
+    });
+    execute.on("error", error => {
+      reject(null);
+    });
+    execute.on("close", code => {
+      const message = `child process exited with code ${code}`;
+      resolve(message);
+      console.log(message);
+    });
   });
 }
 
@@ -113,7 +124,7 @@ async function doCheckUpdate() {
   if (isNewVersion) {
     const fullAppName = generateFullAppName(jsonLatestVersionServer);
     const downloadLink = `${appUrl}/${fullAppName}/${fullAppName}.exe`;
-    const tempPath = getTempPath();
+    const tempPath = await getTempPath(fullAppName);
     const downloadedFile = await doDownloadFileFromServer(
       fullAppName,
       downloadLink,
@@ -121,8 +132,8 @@ async function doCheckUpdate() {
     );
     // const downloadedFile = path.join(__dirname, "/temp/test-app-x64-1.0.1.exe");
     if (downloadedFile) {
-      doInstall(downloadedFile);
-      doUpdateJsonFile(jsonLatestVersionServer);
+      const isInstalled = await doInstall(downloadedFile);
+      if (isInstalled) doUpdateJsonFile(jsonLatestVersionServer);
     }
   } else {
     const message = `this version ${jsonLatestVersionApp.version} is latest version`;
