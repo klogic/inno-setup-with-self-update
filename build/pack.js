@@ -10,7 +10,7 @@ const options = {
   platform: "win32",
   arch: "x64",
   overwrite: true,
-  ignore: ["dist"]
+  ignore: [".exe"]
   // win32metadata: {
   //   "requested-execution-level": "requireAdministrator"
   // }
