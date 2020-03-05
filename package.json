@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "build": "node build/build.js",
+    "build": "npm run pack && node build/build.js",
     "pack": "node build/pack.js"
   },
   "repository": "https://github.com/electron/electron-quick-start",
