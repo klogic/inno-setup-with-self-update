@@ -9,7 +9,8 @@ const options = {
   dir: ".",
   platform: "win32",
   arch: "x64",
-  overwrite: true
+  overwrite: true,
+  ignore: ["dist"]
   // win32metadata: {
   //   "requested-execution-level": "requireAdministrator"
   // }
