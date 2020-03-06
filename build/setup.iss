@@ -25,6 +25,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=commandline dialog
 OutputBaseFilename={#MyExe}
 UsePreviousAppDir=no
+ShowLanguageDialog=no
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -51,3 +52,77 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec 
+
+[code]
+function GetCommandLineParam(inParam: String): String;
+var
+  LoopVar : Integer;
+  BreakLoop : Boolean;
+begin
+  LoopVar :=0;
+  Result := 'False';
+  BreakLoop := False;
+
+  while ( (LoopVar < ParamCount) and
+          (not BreakLoop) ) do
+  begin
+    if ( (ParamStr(LoopVar) = inParam) and
+         ( (LoopVar+1) <= ParamCount )) then
+    begin
+      Result := ParamStr(LoopVar+1);
+
+      BreakLoop := True;
+    end;
+
+    LoopVar := LoopVar + 1;
+  end;
+end;
+
+function ShouldSilentInstall():Boolean;
+var
+  mySilent: string;
+begin
+  Result := False
+  mySilent := GetCommandLineParam('--silent');
+    if not (mySilent = 'False') then
+    begin
+      Result := True;
+    end
+end;
+
+function BoolToStr(Value : Boolean) : String;
+begin
+  if Value then
+  begin
+    Result := 'true'
+  end
+  else
+  begin
+    Result := 'false';
+  end
+end;
+
+#ifdef UNICODE
+  #define AW "W"
+#else
+  #define AW "A"
+#endif
+type
+  HINSTANCE = THandle;
+
+function ShellExecute(hwnd: HWND; lpOperation: string; lpFile: string; lpParameters: string; lpDirectory: string; nShowCmd: Integer): HINSTANCE;
+  external 'ShellExecute{#AW}@shell32.dll stdcall';
+
+
+function InitializeSetup(): boolean;
+var
+  ResultCode: integer;
+  ErrorCode: Integer;
+begin
+  if ShouldSilentInstall() = True then
+  begin
+    ShellExecute(0, '', ExpandConstant('{srcexe}'), '/VERYSILENT', '',SW_SHOW)
+    Abort;
+  end;
+  Result := True;
+end;
