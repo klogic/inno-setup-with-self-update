@@ -21,9 +21,10 @@ DisableProgramGroupPage=yes
 ; The [Icons] "quicklaunchicon" entry uses {userappdata} but its [Tasks] entry has a proper IsAdminInstallMode Check.
 UsedUserAreasWarning=no
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
-PrivilegesRequired=lowest
-PrivilegesRequiredOverridesAllowed=commandline dialog
+; PrivilegesRequired=lowest
+; PrivilegesRequiredOverridesAllowed=commandline dialog
 OutputBaseFilename={#MyExe}
+PrivilegesRequired=none
 UsePreviousAppDir=no
 ShowLanguageDialog=no
 Compression=lzma
@@ -56,39 +57,17 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 [code]
 function GetCommandLineParam(inParam: String): String;
 var
-  LoopVar : Integer;
-  BreakLoop : Boolean;
+  I: Integer;
 begin
-  LoopVar :=0;
   Result := 'False';
-  BreakLoop := False;
-
-  while ( (LoopVar < ParamCount) and
-          (not BreakLoop) ) do
-  begin
-    if ( (ParamStr(LoopVar) = inParam) and
-         ( (LoopVar+1) <= ParamCount )) then
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), inParam) = 0 then
     begin
-      Result := ParamStr(LoopVar+1);
-
-      BreakLoop := True;
+      Result := 'True';
+      Break;
     end;
-
-    LoopVar := LoopVar + 1;
-  end;
 end;
 
-function ShouldSilentInstall():Boolean;
-var
-  mySilent: string;
-begin
-  Result := False
-  mySilent := GetCommandLineParam('--silent');
-    if not (mySilent = 'False') then
-    begin
-      Result := True;
-    end
-end;
 
 function BoolToStr(Value : Boolean) : String;
 begin
@@ -102,6 +81,20 @@ begin
   end
 end;
 
+function ShouldSilentInstall():Boolean;
+var
+  mySilent: string;
+begin
+  Result := False
+  mySilent := GetCommandLineParam('--silent');
+  { MsgBox('silent intstall paramater is ' + mySilent, mbInformation, MB_OK); }
+    if not (mySilent = 'False') then
+    begin
+      Result := True;
+    end;
+end;
+
+
 #ifdef UNICODE
   #define AW "W"
 #else
@@ -113,16 +106,91 @@ type
 function ShellExecute(hwnd: HWND; lpOperation: string; lpFile: string; lpParameters: string; lpDirectory: string; nShowCmd: Integer): HINSTANCE;
   external 'ShellExecute{#AW}@shell32.dll stdcall';
 
+function GenerateDefaultDir(): string;
+begin
+  if IsAdminLoggedOn then
+  begin
+    Result := ExpandConstant('{pf}\{#MyAppName}');
+  end
+    else
+  begin
+    Result := ExpandConstant('{userappdata}\{#MyAppName}');
+  end;
+end;
 
-function InitializeSetup(): boolean;
+
 var
-  ResultCode: integer;
-  ErrorCode: Integer;
+  OptionPage: TInputOptionWizardPage;
+
+
+function doInstall(): boolean;
+var
+  IsCustomArgument: boolean;
+  CustomScript: string;
 begin
   if ShouldSilentInstall() = True then
   begin
-    ShellExecute(0, '', ExpandConstant('{srcexe}'), '/VERYSILENT', '',SW_SHOW)
+    IsCustomArgument:= True
+    CustomScript:= CustomScript + '/VERYSILENT' + ' '
+  end;
+  if IsCustomArgument = True then
+  begin
+    CustomScript:= CustomScript + '/DIR='+GenerateDefaultDir() + ' '
+    ShellExecute(0, '', ExpandConstant('{srcexe}'), CustomScript, '',SW_SHOW)
     Abort;
   end;
   Result := True;
+end;
+procedure InitializeWizard();
+  begin
+  if ShouldSilentInstall() = True then
+    begin
+    doInstall()
+    Abort;
+    end
+  else
+    begin
+    OptionPage :=
+      CreateInputOptionPage(
+        wpWelcome,
+        'Choose installation options', 'Who should this application be installed for?',
+        'Please select whether you wish to make this software available for all users ' +
+          'or just yourself.',
+        True, False);
+
+    OptionPage.Add('&Anyone who uses this computer');
+    OptionPage.Add('&Only for me');
+
+    if IsAdminLoggedOn then
+    begin
+      OptionPage.Values[0] := True;
+    end
+      else
+    begin
+      OptionPage.Values[1] := True;
+      OptionPage.CheckListBox.ItemEnabled[0] := False;
+    end;
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+begin
+  if CurPageID = OptionPage.ID then
+  begin
+    if OptionPage.Values[1] then
+    begin
+      WizardForm.DirEdit.Text := ExpandConstant('{userappdata}\{#MyAppName}')
+    end
+      else
+    begin
+      WizardForm.DirEdit.Text := ExpandConstant('{pf}\{#MyAppName}');
+    end;
+  end;
+  Result := True;
+end;
+
+function InitializeSetup(): boolean;
+begin
+  doInstall()
+  Result:= True
 end;
