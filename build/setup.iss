@@ -37,7 +37,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
 
 [Dirs]
-Name: {commonappdata}\i-Catcher Console; permissions: everyone-modify admins-full;
+Name: {pf}\i-Catcher Console; permissions: everyone-modify admins-full;
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -106,7 +106,52 @@ begin
       Result := True;
     end;
 end;
+procedure ExitProcess(exitCode:integer);
+  external 'ExitProcess@kernel32.dll stdcall';
 
+function StartsWith(SubStr, S: String): Boolean;
+begin
+  Result:= Pos(SubStr, S) = 1;
+end;
+
+function StringReplace(S, oldSubString, newSubString: String): String;
+var
+  stringCopy: String;
+begin
+  stringCopy := S;
+  StringChange(stringCopy, oldSubString, newSubString);
+  Result := stringCopy;
+end;
+
+function GetCommandlineParamValue(inParamName: String): String;
+var
+   paramNameAndValue: String;
+   i: Integer;
+begin
+   Result := '';
+
+   for i := 0 to ParamCount do
+   begin
+     paramNameAndValue := ParamStr(i);
+     if (StartsWith(inParamName, paramNameAndValue)) then
+     begin
+       Result := StringReplace(paramNameAndValue, inParamName + '=', '');
+       break;
+     end;
+   end;
+end;
+
+function GetCustomPathInstall():String;
+var
+  customPath: string;
+begin
+  Result := 'False'
+  customPath := GetCommandlineParamValue('--customPath');
+    if not (customPath = 'False') then
+    begin
+      Result := customPath;
+    end;
+end;
 
 #ifdef UNICODE
   #define AW "W"
@@ -123,7 +168,7 @@ function GenerateDefaultDir(): string;
 begin
   if IsAdminLoggedOn then
   begin
-    Result := ExpandConstant('{commonappdata}\{#MyFolderApp}\{#MyAppName}');
+    Result := ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}');
   end
     else
   begin
@@ -152,12 +197,12 @@ begin
     IsCustomArgument:= True
     if IsAdminLoggedOn then
       begin
-        CustomScript:= CustomScript + '/DIR='+ ExpandConstant('{commonappdata}\{#MyFolderApp}\{#MyAppName}');
+        CustomScript:= CustomScript + '/DIR='+ ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}')  + ' ';
       end
     else
       begin
         MsgBox('required adminitrator permission', mbInformation, MB_OK);
-        Abort;
+        ExitProcess(0);
       end;
   end;
   if ShouldPerMachineInstall() = False then
@@ -165,10 +210,16 @@ begin
     IsCustomArgument:= True
     CustomScript:= CustomScript + '/DIR='+GenerateDefaultDir() + ' '
     end;
+  if not (GetCustomPathInstall() = 'False') then
+    begin
+      CustomScript:= StringReplace(CustomScript, '/DIR='+ ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}'), '')
+      CustomScript:= CustomScript + '/DIR='+ ExpandConstant(+GetCustomPathInstall()) + ' '
+    end;
   if IsCustomArgument = True then
   begin
+    MsgBox('CustomScript: '+CustomScript, mbInformation, MB_OK);
     ShellExecute(0, '', ExpandConstant('{srcexe}'), CustomScript, '',SW_SHOW)
-    Abort;
+    ExitProcess(0);
   end;
   Result := True;
 end;
@@ -177,7 +228,7 @@ begin
   if ShouldSilentInstall() = True then
     begin
     doInstall()
-    Abort;
+    ExitProcess(0);
     end;
   if ShouldSilentInstall() = False then
     begin
@@ -191,6 +242,16 @@ begin
 
     OptionPage.Add('&Anyone who uses this computer');
     OptionPage.Add('&Only for me');
+    if ShouldSilentInstall() = True then
+    begin
+      OptionPage.Add('&customPath');
+      MsgBox('GetCustomPathInstall: '+GetCustomPathInstall(), mbInformation, MB_OK);
+      if not (GetCustomPathInstall() = 'False') then
+      begin
+        OptionPage.Values[2] := ExpandConstant(GetCustomPathInstall())
+        MsgBox('CustomScript: '+ ExpandConstant(OptionPage.Values[2]), mbInformation, MB_OK);
+      end
+    end;
 
     if IsAdminLoggedOn then
     begin
@@ -211,11 +272,12 @@ begin
     if OptionPage.Values[1] then
     begin
       WizardForm.DirEdit.Text := ExpandConstant('{userappdata}\{#MyAppName}')
-    end
-      else
-    begin
-      WizardForm.DirEdit.Text := ExpandConstant('{commonappdata}\{#MyFolderApp}\{#MyAppName}');
     end;
+    if OptionPage.Values[0] then
+    begin
+      WizardForm.DirEdit.Text := ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}');
+    end;
+    MsgBox('CustomScript: '+ ExpandConstant(OptionPage.Values[2]), mbInformation, MB_OK);
   end;
   Result := True;
 end;
