@@ -2,6 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppPublisher "Refinitiv."
+#define MyFolderApp "Refinitiv"
 #define MyAppURL "http://www.example.com/"
 
 [Setup]
@@ -94,6 +95,18 @@ begin
     end;
 end;
 
+function ShouldPerMachineInstall():Boolean;
+var
+  perMachine: string;
+begin
+  Result := False
+  perMachine := GetCommandLineParam('--permachine');
+    if not (perMachine = 'False') then
+    begin
+      Result := True;
+    end;
+end;
+
 
 #ifdef UNICODE
   #define AW "W"
@@ -110,7 +123,7 @@ function GenerateDefaultDir(): string;
 begin
   if IsAdminLoggedOn then
   begin
-    Result := ExpandConstant('{pf}\{#MyAppName}');
+    Result := ExpandConstant('{commonappdata}\{#MyFolderApp}\{#MyAppName}');
   end
     else
   begin
@@ -128,27 +141,45 @@ var
   IsCustomArgument: boolean;
   CustomScript: string;
 begin
+  IsCustomArgument:= False
   if ShouldSilentInstall() = True then
   begin
     IsCustomArgument:= True
     CustomScript:= CustomScript + '/VERYSILENT' + ' '
   end;
+  if ShouldPerMachineInstall() = True then
+  begin
+    IsCustomArgument:= True
+    if IsAdminLoggedOn then
+      begin
+        CustomScript:= CustomScript + '/DIR='+ ExpandConstant('{commonappdata}\{#MyFolderApp}\{#MyAppName}');
+      end
+    else
+      begin
+        MsgBox('required adminitrator permission', mbInformation, MB_OK);
+        Abort;
+      end;
+  end;
+  if ShouldPerMachineInstall() = False then
+    begin
+    IsCustomArgument:= True
+    CustomScript:= CustomScript + '/DIR='+GenerateDefaultDir() + ' '
+    end;
   if IsCustomArgument = True then
   begin
-    CustomScript:= CustomScript + '/DIR='+GenerateDefaultDir() + ' '
     ShellExecute(0, '', ExpandConstant('{srcexe}'), CustomScript, '',SW_SHOW)
     Abort;
   end;
   Result := True;
 end;
 procedure InitializeWizard();
-  begin
+begin
   if ShouldSilentInstall() = True then
     begin
     doInstall()
     Abort;
-    end
-  else
+    end;
+  if ShouldSilentInstall() = False then
     begin
     OptionPage :=
       CreateInputOptionPage(
@@ -183,7 +214,7 @@ begin
     end
       else
     begin
-      WizardForm.DirEdit.Text := ExpandConstant('{pf}\{#MyAppName}');
+      WizardForm.DirEdit.Text := ExpandConstant('{commonappdata}\{#MyFolderApp}\{#MyAppName}');
     end;
   end;
   Result := True;
@@ -191,6 +222,6 @@ end;
 
 function InitializeSetup(): boolean;
 begin
-  doInstall()
+  {doInstall()}
   Result:= True
 end;
