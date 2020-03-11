@@ -55,6 +55,9 @@ Name: "{userappdata}\Microsoft\Internet Explorer\Quick Launch\{#MyAppName}"; Fil
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec 
 
+[UninstallDelete]
+Type: filesandordirs; Name: "{app}"
+
 [code]
 function GetCommandLineParam(inParam: String): String;
 var
@@ -106,8 +109,6 @@ begin
       Result := True;
     end;
 end;
-procedure ExitProcess(exitCode:integer);
-  external 'ExitProcess@kernel32.dll stdcall';
 
 function StartsWith(SubStr, S: String): Boolean;
 begin
@@ -128,7 +129,7 @@ var
    paramNameAndValue: String;
    i: Integer;
 begin
-   Result := '';
+   Result := 'False';
 
    for i := 0 to ParamCount do
    begin
@@ -202,7 +203,7 @@ begin
     else
       begin
         MsgBox('required adminitrator permission', mbInformation, MB_OK);
-        ExitProcess(0);
+        Abort
       end;
   end;
   if ShouldPerMachineInstall() = False then
@@ -212,14 +213,14 @@ begin
     end;
   if not (GetCustomPathInstall() = 'False') then
     begin
+      SaveStringToFile(ExpandConstant('{src}\customPath.txt'), GetCustomPathInstall() , True);
       CustomScript:= StringReplace(CustomScript, '/DIR='+ ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}'), '')
       CustomScript:= CustomScript + '/DIR='+ ExpandConstant(+GetCustomPathInstall()) + ' '
     end;
   if IsCustomArgument = True then
   begin
-    MsgBox('CustomScript: '+CustomScript, mbInformation, MB_OK);
     ShellExecute(0, '', ExpandConstant('{srcexe}'), CustomScript, '',SW_SHOW)
-    ExitProcess(0);
+    Abort
   end;
   Result := True;
 end;
@@ -228,7 +229,7 @@ begin
   if ShouldSilentInstall() = True then
     begin
     doInstall()
-    ExitProcess(0);
+    Abort
     end;
   if ShouldSilentInstall() = False then
     begin
@@ -242,17 +243,6 @@ begin
 
     OptionPage.Add('&Anyone who uses this computer');
     OptionPage.Add('&Only for me');
-    if ShouldSilentInstall() = True then
-    begin
-      OptionPage.Add('&customPath');
-      MsgBox('GetCustomPathInstall: '+GetCustomPathInstall(), mbInformation, MB_OK);
-      if not (GetCustomPathInstall() = 'False') then
-      begin
-        OptionPage.Values[2] := ExpandConstant(GetCustomPathInstall())
-        MsgBox('CustomScript: '+ ExpandConstant(OptionPage.Values[2]), mbInformation, MB_OK);
-      end
-    end;
-
     if IsAdminLoggedOn then
     begin
       OptionPage.Values[0] := True;
@@ -266,18 +256,26 @@ begin
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  customPathValue: TArrayOfString;
 begin
-  if CurPageID = OptionPage.ID then
+  if (LoadStringsFromFile(ExpandConstant('{src}\customPath.txt'), customPathValue) = False) then
   begin
-    if OptionPage.Values[1] then
+    if CurPageID = OptionPage.ID then
     begin
-      WizardForm.DirEdit.Text := ExpandConstant('{userappdata}\{#MyAppName}')
+      if OptionPage.Values[1] then
+      begin
+        WizardForm.DirEdit.Text := ExpandConstant('{userappdata}\{#MyAppName}')
+      end;
+      if OptionPage.Values[0] then
+      begin
+        WizardForm.DirEdit.Text := ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}');
+      end;
     end;
-    if OptionPage.Values[0] then
-    begin
-      WizardForm.DirEdit.Text := ExpandConstant('{pf}\{#MyFolderApp}\{#MyAppName}');
-    end;
-    MsgBox('CustomScript: '+ ExpandConstant(OptionPage.Values[2]), mbInformation, MB_OK);
+  end
+  else
+  begin
+    WizardForm.DirEdit.Text := ExpandConstant(customPathValue[0]);
   end;
   Result := True;
 end;
@@ -286,4 +284,18 @@ function InitializeSetup(): boolean;
 begin
   {doInstall()}
   Result:= True
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  customPathValue: TArrayOfString;
+begin
+    if CurStep = ssDone then
+    begin
+      LoadStringsFromFile(ExpandConstant('{src}\customPath.txt'), customPathValue)
+      if GetArrayLength(customPathValue) > 0 then
+      begin
+        DeleteFile(ExpandConstant('{src}\customPath.txt'));
+      end;
+    end;
 end;
